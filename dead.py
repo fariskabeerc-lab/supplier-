@@ -41,19 +41,23 @@ st.dataframe(supplier_summary.style.format({
     "Total_Discount": "{:,.2f}"
 }))
 
-# --- Top Suppliers Horizontal Bar Chart ---
-st.subheader("Top Suppliers by Net Sales (Horizontal)")
+# --- Top 20 Suppliers Horizontal Bar Chart ---
+st.subheader("Top 20 Suppliers by Net Sales (Horizontal)")
+top20_suppliers = supplier_summary.nlargest(20, 'Total_Sales')
+
 fig = px.bar(
-    supplier_summary,
+    top20_suppliers.sort_values('Total_Sales', ascending=True),  # sort for horizontal display
     y='Supplier', x='Total_Sales',
     text='Total_Sales', color='Total_Sales',
     color_continuous_scale='Viridis',
-    orientation='h'  # horizontal
+    orientation='h'
 )
 fig.update_traces(texttemplate='%{text:,.2f}', textposition='outside')
-fig.update_layout(yaxis=dict(title="Supplier", automargin=True),
-                  xaxis=dict(title="Net Sales"),
-                  bargap=0.4)  # space between bars
+fig.update_layout(
+    yaxis=dict(title="Supplier", automargin=True),
+    xaxis=dict(title="Net Sales"),
+    bargap=0.4
+)
 st.plotly_chart(fig, use_container_width=True)
 
 # --- High Sales but Low Profit Chart ---
@@ -69,7 +73,7 @@ high_sales_low_profit = supplier_summary[
 
 if not high_sales_low_profit.empty:
     fig2 = px.bar(
-        high_sales_low_profit,
+        high_sales_low_profit.sort_values('Total_Sales', ascending=True),
         y='Supplier', x='Total_Sales',
         text='Total_Profit',
         color='Total_Profit',
@@ -77,9 +81,11 @@ if not high_sales_low_profit.empty:
         color_continuous_scale='Reds'
     )
     fig2.update_traces(texttemplate='Profit: %{text:,.2f}', textposition='outside')
-    fig2.update_layout(yaxis=dict(title="Supplier", automargin=True),
-                       xaxis=dict(title="Net Sales"),
-                       bargap=0.4)
+    fig2.update_layout(
+        yaxis=dict(title="Supplier", automargin=True),
+        xaxis=dict(title="Net Sales"),
+        bargap=0.4
+    )
     st.plotly_chart(fig2, use_container_width=True)
 else:
     st.info("No suppliers found with high sales but low profit.")
@@ -91,4 +97,3 @@ st.markdown(f"- **Top Supplier by Sales:** {top_supplier['Supplier']}")
 st.markdown(f"- **Total Sales:** {top_supplier['Total_Sales']:,.2f}")
 st.markdown(f"- **Total Profit:** {top_supplier['Total_Profit']:,.2f}")
 st.markdown(f"- **Number of Distinct Items Supplied:** {top_supplier['Items_Sold']}")
-
