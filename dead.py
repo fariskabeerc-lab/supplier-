@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # --- Title ---
-st.title("SAFA OUD MEHTA (SEP) Supplier Sales Performance Dashboard")
+st.title("Supplier Sales Performance Dashboard")
 
 # --- Load Data ---
 file_path = "supplierwise sep sales AUD.Xlsx"  # replace with your Excel file
@@ -33,12 +33,16 @@ supplier_summary = filtered_df.groupby('Supplier').agg(
     Items_Sold=('Items', 'nunique')  # number of distinct items
 ).reset_index().sort_values(by='Total_Sales', ascending=False)
 
+# --- Add GP% ---
+supplier_summary['GP%'] = (supplier_summary['Total_Profit'] / supplier_summary['Total_Sales']) * 100
+
 st.subheader("Supplier Summary")
 st.dataframe(supplier_summary.style.format({
     "Total_Sales": "{:,.2f}",
     "Total_Profit": "{:,.2f}",
     "Total_Gross_Sales": "{:,.2f}",
-    "Total_Discount": "{:,.2f}"
+    "Total_Discount": "{:,.2f}",
+    "GP%": "{:,.2f}%"
 }))
 
 # --- Top 20 Suppliers Horizontal Bar Chart ---
@@ -66,4 +70,5 @@ top_supplier = supplier_summary.iloc[0]
 st.markdown(f"- **Top Supplier by Sales:** {top_supplier['Supplier']}")
 st.markdown(f"- **Total Sales:** {top_supplier['Total_Sales']:,.2f}")
 st.markdown(f"- **Total Profit:** {top_supplier['Total_Profit']:,.2f}")
+st.markdown(f"- **Gross Profit % (GP%):** {top_supplier['GP%']:.2f}%")
 st.markdown(f"- **Number of Distinct Items Supplied:** {top_supplier['Items_Sold']}")
