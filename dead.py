@@ -3,18 +3,16 @@ import pandas as pd
 import plotly.express as px
 
 # --- Title ---
-st.title("Top Selling Items & Supplier Insights Dashboard")
+st.title("Supplier Sales Performance Dashboard")
 
 # --- Load Data ---
-file_path = "supplierwise sep sales AUD.Xlsx"  # Replace with your file
+file_path = "supplierwise sep sales AUD.Xlsx"  # replace with your Excel file
 df = pd.read_excel(file_path)
-
-# --- Clean Column Names ---
-df.columns = df.columns.str.strip()
+df.columns = df.columns.str.strip()  # clean column names
 
 # --- Sidebar Filters ---
-suppliers = ["All"] + sorted(df['Supplier'].dropna().unique().tolist())
-categories = ["All"] + sorted(df['Category'].dropna().unique().tolist())
+suppliers = ["All"] + sorted(df['Supplier'].dropna().unique())
+categories = ["All"] + sorted(df['Category'].dropna().unique())
 
 selected_supplier = st.sidebar.selectbox("Select Supplier", suppliers)
 selected_category = st.sidebar.selectbox("Select Category", categories)
@@ -26,40 +24,37 @@ if selected_supplier != "All":
 if selected_category != "All":
     filtered_df = filtered_df[filtered_df['Category'] == selected_category]
 
-# --- Top Selling Items by Sales Value ---
-top_items = filtered_df.groupby(['Item Code', 'Items'])['Net Sales (incl. VAT)'].sum().reset_index()
-top_items = top_items.sort_values(by='Net Sales (incl. VAT)', ascending=False).head(10)
+# --- Supplier-wise Aggregation ---
+supplier_summary = filtered_df.groupby('Supplier').agg(
+    Total_Sales=('Net Sales (incl. VAT)', 'sum'),
+    Total_Profit=('Total Profit', 'sum'),
+    Total_Gross_Sales=('Gross Sales', 'sum'),
+    Total_Discount=('Discount', 'sum'),
+    Items_Sold=('Items', 'nunique')  # number of distinct items
+).reset_index().sort_values(by='Total_Sales', ascending=False)
 
-st.subheader("Top 10 Selling Items")
-st.dataframe(top_items.style.format({"Net Sales (incl. VAT)": "{:,.2f}"}))
+st.subheader("Supplier Summary")
+st.dataframe(supplier_summary.style.format({
+    "Total_Sales": "{:,.2f}",
+    "Total_Profit": "{:,.2f}",
+    "Total_Gross_Sales": "{:,.2f}",
+    "Total_Discount": "{:,.2f}"
+}))
 
-# --- Supplier Contribution to Sales ---
-supplier_sales = filtered_df.groupby('Supplier')['Net Sales (incl. VAT)'].sum().reset_index()
-supplier_sales = supplier_sales.sort_values(by='Net Sales (incl. VAT)', ascending=False)
-
-st.subheader("Supplier Contribution to Sales")
-fig1 = px.bar(supplier_sales, x='Supplier', y='Net Sales (incl. VAT)',
-              text='Net Sales (incl. VAT)', color='Net Sales (incl. VAT)',
-              color_continuous_scale='Viridis')
-st.plotly_chart(fig1, use_container_width=True)
+# --- Top Suppliers Bar Chart ---
+st.subheader("Top Suppliers by Net Sales")
+fig = px.bar(
+    supplier_summary, 
+    x='Supplier', y='Total_Sales', 
+    text='Total_Sales', color='Total_Sales',
+    color_continuous_scale='Viridis'
+)
+st.plotly_chart(fig, use_container_width=True)
 
 # --- Key Insights ---
-total_sales = filtered_df['Net Sales (incl. VAT)'].sum()
-total_profit = filtered_df['Total Profit'].sum()
-total_gross_sales = filtered_df['Gross Sales'].sum()
-total_discount = filtered_df['Discount'].sum()
-total_excise_value = filtered_df['Excise_Value'].sum()
-
-st.subheader("Key Insights")
-st.markdown(f"- **Total Net Sales:** {total_sales:,.2f}")
-st.markdown(f"- **Total Profit:** {total_profit:,.2f}")
-st.markdown(f"- **Total Gross Sales:** {total_gross_sales:,.2f}")
-st.markdown(f"- **Total Discount:** {total_discount:,.2f}")
-st.markdown(f"- **Total Excise Value:** {total_excise_value:,.2f}")
-
-# --- Top Items Bar Chart ---
-st.subheader("Top Items by Net Sales")
-fig2 = px.bar(top_items, x='Items', y='Net Sales (incl. VAT)',
-              text='Net Sales (incl. VAT)', color='Net Sales (incl. VAT)',
-              color_continuous_scale='Cividis')
-st.plotly_chart(fig2, use_container_width=True)
+st.subheader("Key Supplier Insights")
+top_supplier = supplier_summary.iloc[0]
+st.markdown(f"- **Top Supplier by Sales:** {top_supplier['Supplier']}")
+st.markdown(f"- **Total Sales:** {top_supplier['Total_Sales']:,.2f}")
+st.markdown(f"- **Total Profit:** {top_supplier['Total_Profit']:,.2f}")
+st.markdown(f"- **Number of Distinct Items Supplied:** {top_supplier['Items_Sold']}")
