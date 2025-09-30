@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # --- Title ---
-st.title("SAFA oud mehta SEP Supplier Sales Performance Dashboard")
+st.title("SAFA OUD MEHTA (SEP) Supplier Sales Performance Dashboard")
 
 # --- Load Data ---
 file_path = "supplierwise sep sales AUD.Xlsx"  # replace with your Excel file
@@ -59,36 +59,6 @@ fig.update_layout(
     bargap=0.4
 )
 st.plotly_chart(fig, use_container_width=True)
-
-# --- High Sales but Low Profit Chart ---
-st.subheader("Suppliers with High Sales but Low Profit")
-# Define threshold: high sales above median, profit below median
-sales_threshold = supplier_summary['Total_Sales'].median()
-profit_threshold = supplier_summary['Total_Profit'].median()
-
-high_sales_low_profit = supplier_summary[
-    (supplier_summary['Total_Sales'] > sales_threshold) &
-    (supplier_summary['Total_Profit'] < profit_threshold)
-]
-
-if not high_sales_low_profit.empty:
-    fig2 = px.bar(
-        high_sales_low_profit.sort_values('Total_Sales', ascending=True),
-        y='Supplier', x='Total_Sales',
-        text='Total_Profit',
-        color='Total_Profit',
-        orientation='h',
-        color_continuous_scale='Reds'
-    )
-    fig2.update_traces(texttemplate='Profit: %{text:,.2f}', textposition='outside')
-    fig2.update_layout(
-        yaxis=dict(title="Supplier", automargin=True),
-        xaxis=dict(title="Net Sales"),
-        bargap=0.4
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-else:
-    st.info("No suppliers found with high sales but low profit.")
 
 # --- Key Insights ---
 st.subheader("Key Supplier Insights")
