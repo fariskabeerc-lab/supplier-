@@ -1,55 +1,61 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
+import plotly.express as px
 
-st.title("Supplier Sales & Profit Performance Dashboard")
+# --- Title ---
+st.title("Supplier Sales Performance Dashboard")
 
-# --- Load Excel File directly ---
-file_path = "supplierwise sep sales AUD.Xlsx"  # make sure this file is in the same folder
+# --- Load Data ---
+file_path = "supplierwise sep sales AUD.Xlsx"  # replace with your Excel file
 df = pd.read_excel(file_path)
-df.columns = df.columns.str.strip()
+df.columns = df.columns.str.strip()  # clean column names
 
-# --- Aggregate by Supplier ---
-supplier_summary = df.groupby('Supplier').agg(
+# --- Sidebar Filters ---
+suppliers = ["All"] + sorted(df['Supplier'].dropna().unique())
+categories = ["All"] + sorted(df['Category'].dropna().unique())
+
+selected_supplier = st.sidebar.selectbox("Select Supplier", suppliers)
+selected_category = st.sidebar.selectbox("Select Category", categories)
+
+# --- Apply Filters ---
+filtered_df = df.copy()
+if selected_supplier != "All":
+    filtered_df = filtered_df[filtered_df['Supplier'] == selected_supplier]
+if selected_category != "All":
+    filtered_df = filtered_df[filtered_df['Category'] == selected_category]
+
+# --- Supplier-wise Aggregation ---
+supplier_summary = filtered_df.groupby('Supplier').agg(
     Total_Sales=('Net Sales (incl. VAT)', 'sum'),
-    Total_Profit=('Total Profit', 'sum')
+    Total_Profit=('Total Profit', 'sum'),
+    Total_Gross_Sales=('Gross Sales', 'sum'),
+    Total_Discount=('Discount', 'sum'),
+    Items_Sold=('Items', 'nunique')  # number of distinct items
 ).reset_index().sort_values(by='Total_Sales', ascending=False)
 
-# --- Simple Bar Chart ---
-st.subheader("Suppliers by Sales & Profit")
-fig = go.Figure()
-
-# Sales Bars
-fig.add_trace(go.Bar(
-    x=supplier_summary["Supplier"],
-    y=supplier_summary["Total_Sales"],
-    name="Total Sales",
-    marker_color="skyblue"
-))
-
-# Profit Bars
-fig.add_trace(go.Bar(
-    x=supplier_summary["Supplier"],
-    y=supplier_summary["Total_Profit"],
-    name="Total Profit",
-    marker_color="lightgreen"
-))
-
-fig.update_layout(
-    barmode='group',  # show side-by-side bars
-    xaxis_title="Supplier",
-    yaxis_title="Value",
-    plot_bgcolor="white",
-    paper_bgcolor="white",
-    font=dict(size=12),
-    margin=dict(l=40, r=40, t=40, b=120)
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-# --- Table View ---
-st.subheader("Supplier Summary Table")
+st.subheader("Supplier Summary")
 st.dataframe(supplier_summary.style.format({
     "Total_Sales": "{:,.2f}",
-    "Total_Profit": "{:,.2f}"
+    "Total_Profit": "{:,.2f}",
+    "Total_Gross_Sales": "{:,.2f}",
+    "Total_Discount": "{:,.2f}"
 }))
+
+# --- Top Suppliers Bar Chart ---
+st.subheader("Top Suppliers by Net Sales")
+fig = px.bar(
+    supplier_summary, 
+    x='Supplier', y='Total_Sales', 
+    text='Total_Sales', color='Total_Sales',
+    color_continuous_scale='Viridis'
+)
+st.plotly_chart(fig, use_container_width=True)
+
+# --- Key Insights ---
+st.subheader("Key Supplier Insights")
+top_supplier = supplier_summary.iloc[0]
+st.markdown(f"- **Top Supplier by Sales:** {top_supplier['Supplier']}")
+st.markdown(f"- **Total Sales:** {top_supplier['Total_Sales']:,.2f}")
+st.markdown(f"- **Total Profit:** {top_supplier['Total_Profit']:,.2f}")
+st.markdown(f"- **Number of Distinct Items Supplied:** {top_supplier['Items_Sold']}")
+
