@@ -2,81 +2,64 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# --- Load Multiple Excel Files ---
-files = ["dead_stock1.xlsx", "dead_stock2.xlsx", "dead_stock3.xlsx"]  # update file names
-dfs = [pd.read_excel(f) for f in files]
-df = pd.concat(dfs, ignore_index=True)
+# --- Title ---
+st.title("Top Selling Items & Supplier Insights Dashboard")
 
-# --- Clean column names ---
+# --- Load Data ---
+file_path = "supplierwise sep sales AUD.Xlsx"  # Replace with your file
+df = pd.read_excel(file_path)
+
+# --- Clean Column Names ---
 df.columns = df.columns.str.strip()
 
-# --- Ensure numeric fields ---
-for col in ["Stock Value", "Stock", "Profit", "Margin%", "Total Sales", "Cost", "Selling", "LP Price"]:
-    if col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+# --- Sidebar Filters ---
+suppliers = ["All"] + sorted(df['Supplier'].dropna().unique().tolist())
+categories = ["All"] + sorted(df['Category'].dropna().unique().tolist())
 
-# --- Handle negative stock for plotting ---
-df["Stock_clean"] = df["Stock"].clip(lower=0)
+selected_supplier = st.sidebar.selectbox("Select Supplier", suppliers)
+selected_category = st.sidebar.selectbox("Select Category", categories)
 
-# --- Dashboard Layout ---
-st.set_page_config(page_title="Dead Stock Dashboard", layout="wide")
-st.title("📊Safa Oud metha Stock(Zero Sales and LP before 2025)")
+# --- Apply Filters ---
+filtered_df = df.copy()
+if selected_supplier != "All":
+    filtered_df = filtered_df[filtered_df['Supplier'] == selected_supplier]
+if selected_category != "All":
+    filtered_df = filtered_df[filtered_df['Category'] == selected_category]
 
-# --- KPIs at Top ---
-col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Total Dead Stock Items", f"{len(df):,}")
-col2.metric("Total Stock Qty", f"{df['Stock'].sum():,.0f}")
-col3.metric("Total Stock Value", f"{df['Stock Value'].sum():,.2f}")
+# --- Top Selling Items by Sales Value ---
+top_items = filtered_df.groupby(['Item Code', 'Items'])['Net Sales (incl. VAT)'].sum().reset_index()
+top_items = top_items.sort_values(by='Net Sales (incl. VAT)', ascending=False).head(10)
 
-# --- High Priority Items (Top 10 by Stock Value) ---
-st.subheader("🚨 High Priority Items (Top 10 by Stock Value)")
-high_priority = df.nlargest(10, "Stock Value")
-priority_cols = [c for c in ["Item Bar Code","Item Name","Stock","Stock Value","Margin%","Profit",
-                             "Cost","Selling","LP Price","LP Date","LP Supplier"] if c in df.columns]
-st.table(high_priority[priority_cols])  # removed gradient to avoid matplotlib dependency
+st.subheader("Top 10 Selling Items")
+st.dataframe(top_items.style.format({"Net Sales (incl. VAT)": "{:,.2f}"}))
 
-# --- Top Items by Stock Value (Horizontal Bar Chart) ---
-st.subheader("Top 20 Items by Stock Value")
-top_items = df.nlargest(20, "Stock Value")
-fig1 = px.bar(
-    top_items, y="Item Name", x="Stock Value", orientation="h",
-    text="Stock Value", color="Stock Value", color_continuous_scale="Reds",
-    hover_data={
-        "Item Bar Code": True,
-        "Item Name": True,
-        "Stock": True,
-        "Stock Value": True,
-        "Margin%": True,
-        "Profit": True,
-        "Cost": True,
-        "Selling": True,
-        "LP Price": True
-    }
-)
-fig1.update_layout(yaxis={'categoryorder':'total ascending'})
+# --- Supplier Contribution to Sales ---
+supplier_sales = filtered_df.groupby('Supplier')['Net Sales (incl. VAT)'].sum().reset_index()
+supplier_sales = supplier_sales.sort_values(by='Net Sales (incl. VAT)', ascending=False)
+
+st.subheader("Supplier Contribution to Sales")
+fig1 = px.bar(supplier_sales, x='Supplier', y='Net Sales (incl. VAT)',
+              text='Net Sales (incl. VAT)', color='Net Sales (incl. VAT)',
+              color_continuous_scale='Viridis')
 st.plotly_chart(fig1, use_container_width=True)
 
-# --- Pie Chart: Category-wise Stock Value ---
-st.subheader("Stock Value by Category")
-if "Category" in df.columns:
-    category_df = df.groupby("Category")["Stock Value"].sum().reset_index()
-    fig2 = px.pie(
-        category_df, values="Stock Value", names="Category",
-        hover_data={"Stock Value": True},
-        color_discrete_sequence=px.colors.sequential.Reds
-    )
-    fig2.update_traces(textinfo="percent+label")
-    st.plotly_chart(fig2, use_container_width=True)
+# --- Key Insights ---
+total_sales = filtered_df['Net Sales (incl. VAT)'].sum()
+total_profit = filtered_df['Total Profit'].sum()
+total_gross_sales = filtered_df['Gross Sales'].sum()
+total_discount = filtered_df['Discount'].sum()
+total_excise_value = filtered_df['Excise_Value'].sum()
 
+st.subheader("Key Insights")
+st.markdown(f"- **Total Net Sales:** {total_sales:,.2f}")
+st.markdown(f"- **Total Profit:** {total_profit:,.2f}")
+st.markdown(f"- **Total Gross Sales:** {total_gross_sales:,.2f}")
+st.markdown(f"- **Total Discount:** {total_discount:,.2f}")
+st.markdown(f"- **Total Excise Value:** {total_excise_value:,.2f}")
 
-
-# --- Detailed Data Table (Full Details) ---
-st.subheader("Detailed Dead Stock Items (Full Details)")
-detailed_cols = [c for c in ["Item Bar Code","Item Name","Item No","Stock","Stock Value","Margin%","Profit",
-                             "Cost","Selling","LP Price","LP Date","LP Supplier","CF","Unit","Category","Pre Return"] 
-                 if c in df.columns]
-st.dataframe(df[detailed_cols])
-
-# --- Download Option ---
-csv = df[detailed_cols].to_csv(index=False).encode('utf-8')
-st.download_button("📥 Download Full Dead Stock Data", csv, "dead_stock_full.csv", "text/csv")
+# --- Top Items Bar Chart ---
+st.subheader("Top Items by Net Sales")
+fig2 = px.bar(top_items, x='Items', y='Net Sales (incl. VAT)',
+              text='Net Sales (incl. VAT)', color='Net Sales (incl. VAT)',
+              color_continuous_scale='Cividis')
+st.plotly_chart(fig2, use_container_width=True)
