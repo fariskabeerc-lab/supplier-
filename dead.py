@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # --- Title ---
-st.title("Supplier Sales Performance Dashboard")
+st.title("SAFA oud mehta SEP Supplier Sales Performance Dashboard")
 
 # --- Load Data ---
 file_path = "supplierwise sep sales AUD.Xlsx"  # replace with your Excel file
